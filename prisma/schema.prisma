@@ -1,0 +1,447 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Institution {
+  id           String       @id @default(cuid())
+  name         String
+  slug         String       @unique
+  domain       String       @unique
+  settingsJson String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  campuses     Campus[]
+  users        User[]
+  categories   Category[]
+  items        Item[]
+  clusters     DuplicateCluster[]
+  auditLogs    AuditLog[]
+}
+
+model Campus {
+  id            String       @id @default(cuid())
+  institutionId String
+  name          String
+  code          String
+  centerLat     Float?
+  centerLng     Float?
+  createdAt     DateTime     @default(now())
+
+  institution   Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  locations     Location[]
+
+  @@unique([institutionId, code])
+  @@index([institutionId])
+}
+
+model Location {
+  id             String       @id @default(cuid())
+  campusId       String
+  name           String
+  building       String
+  floor          String?
+  roomOrArea     String?
+  latitude       Float?
+  longitude      Float?
+  isSecurityDesk Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  campus         Campus       @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  items          Item[]
+  sightings      Sighting[]
+  handovers      HandoverRecord[]
+
+  @@index([campusId, building])
+}
+
+model User {
+  id              String       @id @default(cuid())
+  institutionId   String
+  name            String
+  email           String       @unique
+  passwordHash    String
+  role            String       @default("STUDENT") // STUDENT | STAFF | ADMIN | SUPER_ADMIN
+  studentOrStaffId String?
+  phone           String?
+  avatarUrl       String?
+  points          Int          @default(0)
+  credits         Int          @default(0)
+  tier            String       @default("BRONZE") // BRONZE | SILVER | GOLD | PLATINUM
+  isVerified      Boolean      @default(true)
+  isActive        Boolean      @default(true)
+  lastLoginAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  institution     Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  sessions        Session[]
+  reportedItems   Item[]       @relation("Reporter")
+  claims          Claim[]      @relation("Claimant")
+  handoversGiven  HandoverRecord[] @relation("StaffHandover")
+  auditActions    AuditLog[]   @relation("Actor")
+  notifications   Notification[]
+  creditTransactions CreditTransaction[]
+  redemptions     RewardRedemption[]
+
+  @@index([institutionId, role])
+  @@index([points])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Category {
+  id                     String       @id @default(cuid())
+  institutionId          String
+  name                   String
+  slug                   String
+  icon                   String?
+  isHighValue            Boolean      @default(false)
+  verificationSchemaJson String?
+  createdAt              DateTime     @default(now())
+
+  institution            Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  items                  Item[]
+
+  @@unique([institutionId, slug])
+}
+
+model Item {
+  id                String       @id @default(cuid())
+  institutionId     String
+  reporterId        String
+  type              String       // "LOST" | "FOUND"
+  title             String
+  description       String
+  categoryId        String
+  primaryLocationId String
+  incidentDate      DateTime
+  incidentTime      String?      // e.g. "16:30"
+  status            String       @default("ACTIVE") // ACTIVE | MATCH_PENDING | UNDER_VERIFICATION | RECOVERED | CLOSED | ARCHIVED
+  moderationStatus  String       @default("APPROVED") // APPROVED | PENDING_REVIEW | FLAGGED | REJECTED
+  isHighValue       Boolean      @default(false)
+  isDuplicate       Boolean      @default(false)
+  primaryItemId     String?      // Reference to canonical item if merged
+  privateNotes      String?      // Staff-only or private verification hints
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  institution       Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  reporter          User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  category          Category     @relation(fields: [categoryId], references: [id])
+  primaryLocation   Location     @relation(fields: [primaryLocationId], references: [id])
+  primaryItem       Item?        @relation("MergedItem", fields: [primaryItemId], references: [id], onDelete: SetNull)
+  mergedDuplicates  Item[]       @relation("MergedItem")
+
+  images            ItemImage[]
+  visualFingerprint VisualFingerprint?
+  embeddings        Embedding[]
+  lostMatches       Match[]      @relation("LostItemMatches")
+  foundMatches      Match[]      @relation("FoundItemMatches")
+  sightings         Sighting[]
+  claimsReceived    Claim[]      @relation("ItemClaims")
+  claimsOriginated  Claim[]      @relation("LostReportClaims")
+  clusterMemberships DuplicateClusterMember[]
+  canonicalClusters DuplicateCluster[] @relation("CanonicalItem")
+
+  @@index([institutionId, type, status, createdAt])
+  @@index([categoryId, primaryLocationId])
+  @@index([reporterId])
+}
+
+model ItemImage {
+  id           String   @id @default(cuid())
+  itemId       String
+  url          String
+  thumbnailUrl String?
+  isPrimary    Boolean  @default(false)
+  width        Int?
+  height       Int?
+  createdAt    DateTime @default(now())
+
+  item         Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+model VisualFingerprint {
+  id                  String   @id @default(cuid())
+  itemId              String   @unique
+  category            String
+  subcategory         String?
+  primaryColor        String
+  secondaryColorsJson String?  // JSON string array e.g. '["Silver","Gray"]'
+  shape               String?
+  material            String?
+  brand               String?
+  visibleText         String?
+  logo                String?
+  stickers            String?
+  scratches           String?
+  dents               String?
+  uniqueMarks         String?
+  accessories         String?
+  approximateSize     String?
+  condition           String?
+  distinctiveFeatures String?  // JSON string array
+  confidenceScores    String   // JSON map e.g. '{"brand":0.95,"stickers":0.91}'
+  rawAiResponse       String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  item                Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+}
+
+model Embedding {
+  id         String   @id @default(cuid())
+  itemId     String
+  type       String   // "TEXT_SEMANTIC" | "MULTIMODAL_VISION" | "ATTRIBUTES_COMPOUND"
+  vectorJson String   // JSON array of floats [0.012, -0.045, ...] (768 dimensions)
+  model      String   @default("text-embedding-004")
+  dimensions Int      @default(768)
+  createdAt  DateTime @default(now())
+
+  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, type])
+}
+
+model Match {
+  id             String       @id @default(cuid())
+  lostItemId     String
+  foundItemId    String
+  overallScore   Float        // 0.0 to 1.0 (e.g. 0.94)
+  visualScore    Float        @default(0.0)
+  semanticScore  Float        @default(0.0)
+  attributeScore Float        @default(0.0)
+  locationScore  Float        @default(0.0)
+  timeScore      Float        @default(0.0)
+  status         String       @default("POTENTIAL") // POTENTIAL | REVIEWED_BY_STAFF | CONFIRMED | DISMISSED
+  confidenceTier String       @default("HIGH")      // LOW | MEDIUM | HIGH | EXCEPTIONAL
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  lostItem       Item         @relation("LostItemMatches", fields: [lostItemId], references: [id], onDelete: Cascade)
+  foundItem      Item         @relation("FoundItemMatches", fields: [foundItemId], references: [id], onDelete: Cascade)
+  evidence       MatchEvidence[]
+
+  @@unique([lostItemId, foundItemId])
+  @@index([lostItemId, overallScore])
+  @@index([foundItemId, overallScore])
+}
+
+model MatchEvidence {
+  id          String   @id @default(cuid())
+  matchId     String
+  signalType  String   // CATEGORY_MATCH | COLOR_AGREEMENT | STICKER_FINGERPRINT | SPATIAL_PROXIMITY | TEMPORAL_COMPATIBILITY | SEMANTIC_ALIGNMENT
+  description String
+  score       Float
+  weight      Float
+  createdAt   DateTime @default(now())
+
+  match       Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+}
+
+model Sighting {
+  id            String   @id @default(cuid())
+  itemId        String
+  locationId    String
+  timestamp     DateTime
+  sightingType  String   // "OBSERVED" | "AI_INFERRED"
+  confidence    Float    @default(1.0) // 1.0 for OBSERVED, e.g. 0.82 for AI_INFERRED
+  reportedBy    String?  // Name or role of reporter/observer
+  notes         String?
+  sequenceOrder Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  item          Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  location      Location @relation(fields: [locationId], references: [id])
+
+  @@index([itemId, sequenceOrder])
+}
+
+model Claim {
+  id                String       @id @default(cuid())
+  itemId            String       // Found item being claimed
+  claimantId        String
+  lostItemId        String?      // Optional linked lost report
+  status            String       @default("PENDING") // PENDING | UNDER_REVIEW | VERIFICATION_REQUIRED | VERIFIED | HANDOVER_SCHEDULED | COMPLETED | REJECTED | CANCELLED | EXPIRED
+  verificationLevel String       @default("STANDARD") // STANDARD | HIGH_VALUE_STRICT
+  claimantNotes     String?
+  rejectionReason   String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  item              Item         @relation("ItemClaims", fields: [itemId], references: [id], onDelete: Cascade)
+  claimant          User         @relation("Claimant", fields: [claimantId], references: [id], onDelete: Cascade)
+  lostItem          Item?        @relation("LostReportClaims", fields: [lostItemId], references: [id], onDelete: SetNull)
+  verifications     ClaimVerification[]
+  handoverRecord    HandoverRecord?
+
+  @@index([itemId, status])
+  @@index([claimantId])
+}
+
+model ClaimVerification {
+  id             String   @id @default(cuid())
+  claimId        String
+  question       String
+  claimantAnswer String
+  isCorrect      Boolean?
+  reviewerNotes  String?
+  evidenceFiles  String?  // JSON array of file URLs (e.g. proof of purchase, photo)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  claim          Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([claimId])
+}
+
+model HandoverRecord {
+  id                   String   @id @default(cuid())
+  claimId              String   @unique
+  staffUserId          String
+  handoverCode         String   // Security release PIN (e.g. "RC-8841")
+  handoverLocationId   String
+  releasedAt           DateTime?
+  idVerificationMethod String   @default("STUDENT_ID_CARD") // STUDENT_ID_CARD | GOVT_ID | STAFF_ATTESTATION
+  claimantSignature    String?
+  notes                String?
+  createdAt            DateTime @default(now())
+
+  claim                Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  staffUser            User     @relation("StaffHandover", fields: [staffUserId], references: [id])
+  handoverLocation     Location @relation(fields: [handoverLocationId], references: [id])
+
+  @@index([handoverLocationId])
+}
+
+model DuplicateCluster {
+  id                String       @id @default(cuid())
+  institutionId     String
+  canonicalItemId   String?
+  status            String       @default("SUGGESTED") // SUGGESTED | MERGED | DISMISSED
+  averageSimilarity Float        @default(0.0)
+  detectedAt        DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  institution       Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  canonicalItem     Item?        @relation("CanonicalItem", fields: [canonicalItemId], references: [id], onDelete: SetNull)
+  members           DuplicateClusterMember[]
+
+  @@index([institutionId, status])
+}
+
+model DuplicateClusterMember {
+  id                   String           @id @default(cuid())
+  clusterId            String
+  itemId               String
+  similarityToCanonical Float           @default(0.0)
+  createdAt            DateTime         @default(now())
+
+  cluster              DuplicateCluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  item                 Item             @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([clusterId, itemId])
+}
+
+model AuditLog {
+  id            String       @id @default(cuid())
+  institutionId String
+  actorId       String?
+  action        String       // ITEM_CREATED | MATCH_CONFIRMED | CLAIM_SUBMITTED | CLAIM_VERIFIED | HANDOVER_COMPLETED | ITEMS_MERGED | ITEM_MODERATED
+  entityType    String       // Item | Match | Claim | DuplicateCluster | Location
+  entityId      String
+  metadata      String?      // JSON stringified state delta
+  ipAddress     String?
+  createdAt     DateTime     @default(now())
+
+  institution   Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  actor         User?        @relation("Actor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([institutionId, action, createdAt])
+  @@index([entityType, entityId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String    // MATCH_FOUND | HIGH_CONFIDENCE_MATCH | CLAIM_UPDATE | VERIFICATION_REQUEST | HANDOVER_READY | SYSTEM_ALERT
+  title     String
+  message   String
+  actionUrl String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+model CreditTransaction {
+  id           String   @id @default(cuid())
+  userId       String
+  amount       Int      // Positive for earned, negative for spent/redeemed
+  balanceAfter Int      // Running spendable balance after this transaction
+  type         String   // FOUND_ITEM_REPORTED | SIGHTING_SUBMITTED | HANDOVER_COMPLETED | SPEED_BONUS | HIGH_VALUE_BONUS | REWARD_REDEEMED | ADMIN_ADJUSTMENT
+  description  String
+  referenceId  String?  // Optional linked item ID, claim ID, or perk ID
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([type])
+}
+
+model RewardPerk {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  costCredits Int
+  category    String   // DINING | CAMPUS_STORE | ACADEMIC | PARKING | MERCH
+  icon        String   // coffee | book | clock | bookmark | car | gift | trophy
+  stock       Int      @default(100)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  redemptions RewardRedemption[]
+
+  @@index([category, isActive])
+}
+
+model RewardRedemption {
+  id             String      @id @default(cuid())
+  userId         String
+  perkId         String
+  redemptionCode String      @unique // e.g. "RC-COFFEE-8821"
+  creditsSpent   Int
+  status         String      @default("ACTIVE") // ACTIVE | USED | EXPIRED
+  expiresAt      DateTime
+  createdAt      DateTime    @default(now())
+
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  perk           RewardPerk  @relation(fields: [perkId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([perkId])
+}
+
