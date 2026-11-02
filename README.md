@@ -63,42 +63,9 @@ To test UniTrace without manual login hurdles, a **1-Click Persona Switcher** is
 | ⚙️ **Administrator** | Dean Marcus Vance | Oversees campus analytics, zones, categories | `admin@apex.edu` | `Password123!` |
 | 🌐 **Superadmin** | System Overseer | Multi-institution root operator | `superadmin@unitrace.io` | `Password123!` |
 
----
 
-## ⚡ Quickstart
 
-### Prerequisites
-- Node.js 18+ or 20+
-- npm
-
-### 1. Clone & Install
-```bash
-git clone <repo-url>
-cd "code flux"
-npm install
-```
-
-### 2. Configure Environment
-```bash
-cp .env.example .env
-```
-*(Optional: add `GEMINI_API_KEY=your_key` in `.env`. If left empty or invalid, UniTrace automatically uses deterministic mock AI with 100% feature parity).*
-
-### 3. Initialize & Seed Database
-```bash
-npx prisma db push
-npm run db:seed
-```
-
-### 4. Run Development Server
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-## 🎬 9-Scene Golden Demo Walkthrough
+## 🎬 5-Scene Golden Demo Walkthrough
 
 Follow this 5-minute storyline to experience the full AI recovery workflow:
 
@@ -150,32 +117,7 @@ Follow this 5-minute storyline to experience the full AI recovery workflow:
 
 ---
 
-## 🧪 Automated Testing
 
-UniTrace includes a comprehensive Vitest test suite covering unit math, AI services, state machines, and end-to-end integration:
-
-```bash
-# Run all unit and integration tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-```
-
-**Test Coverage Summary:**
-- `tests/unit/auth.test.ts` — Password hashing, verification, cookie extraction
-- `tests/unit/validators.test.ts` — Zod schema validation for reports & claims
-- `tests/unit/items.test.ts` — Redaction of private notes & zero-knowledge security
-- `tests/unit/ai-vision.test.ts` — Visual fingerprint extraction & cosine similarity
-- `tests/unit/matching.test.ts` — Weighted multi-signal matching score computation
-- `tests/unit/journey.test.ts` — Sighting timeline sorting & spatial speed sanity
-- `tests/unit/duplicates.test.ts` — Duplicate report clustering & score thresholds
-- `tests/unit/claims.test.ts` — Claim status machine & 6-digit PIN validation
-- `tests/integration/golden-storyline.test.ts` — Complete 9-scene end-to-end lifecycle
-
----
-
-## 🏗️ Architecture & Project Structure
 
 ```
 ├── app/                        # Next.js 14 App Router
@@ -213,7 +155,3 @@ npm run test:watch
 4. **Immutable Audit Trails**: Every status transition, report merge, and physical custody transfer is permanently recorded with actor ID, timestamp, and IP.
 
 ---
-
-## 📄 License
-
-UniTrace is open source under the [MIT License](LICENSE).
