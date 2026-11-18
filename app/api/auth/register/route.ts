@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       { status: 201 }
     );
 
-    await createSession(user.id, response);
+    await createSession(user.id, response, user);
 
     return response;
   } catch (e: any) {

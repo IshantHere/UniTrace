@@ -154,7 +154,7 @@ export async function POST(req: Request) {
       },
     });
 
-    await createSession(user.id, response);
+    await createSession(user.id, response, user);
 
     return response;
   } catch (e: any) {

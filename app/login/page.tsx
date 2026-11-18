@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+  const [targetUrl, setTargetUrl] = useState("/dashboard");
 
   // Check if redirect query parameter is set e.g. /login?redirect=/report/lost
   const resolveTarget = (fallbackUrl: string) => {
@@ -40,7 +41,6 @@ export default function LoginPage() {
         setError(json.error?.message || "Invalid credentials");
         setLoading(false);
       } else {
-        setRedirecting(true);
         const role = json.data?.user?.role;
         const defaultRoute =
           role === "STAFF"
@@ -50,8 +50,14 @@ export default function LoginPage() {
             : "/dashboard";
 
         const target = resolveTarget(json.data?.redirectUrl || defaultRoute);
-        // Full hard navigation guarantees fresh server session evaluation without stale RSC cache
-        window.location.href = target;
+        setTargetUrl(target);
+        setRedirecting(true);
+
+        // Immediate hard navigation with fallback
+        window.location.replace(target);
+        setTimeout(() => {
+          window.location.href = target;
+        }, 150);
       }
     } catch {
       setError("An unexpected network error occurred");
@@ -74,7 +80,6 @@ export default function LoginPage() {
 
       const json = await res.json();
       if (json.success) {
-        setRedirecting(true);
         const role = json.data?.user?.role;
         const defaultRoute =
           role === "STAFF"
@@ -84,7 +89,13 @@ export default function LoginPage() {
             : "/dashboard";
 
         const target = resolveTarget(json.data?.redirectUrl || defaultRoute);
-        window.location.href = target;
+        setTargetUrl(target);
+        setRedirecting(true);
+
+        window.location.replace(target);
+        setTimeout(() => {
+          window.location.href = target;
+        }, 150);
       } else {
         setError(json.error?.message || "Login failed");
         setLoading(false);
@@ -112,6 +123,18 @@ export default function LoginPage() {
             Newton University precision campus intelligence network
           </p>
         </div>
+
+        {redirecting && (
+          <div className="rounded border border-[#25845A]/30 bg-[#25845A]/10 p-3.5 text-xs text-[#25845A] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+              <span className="font-semibold">Session established. Opening campus console...</span>
+            </div>
+            <a href={targetUrl} className="underline font-bold text-[11px] ml-2 shrink-0">
+              Click to Enter &rarr;
+            </a>
+          </div>
+        )}
 
         {error && (
           <div className="rounded border border-[#DC2626]/30 bg-[#DC2626]/5 p-3 text-xs text-[#DC2626]">

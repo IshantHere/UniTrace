@@ -29,35 +29,47 @@ export default async function AdminDashboardPage() {
   }
 
   // Fetch campus intelligence metrics
-  const [
-    totalLost,
-    totalFound,
-    recoveredCount,
-    activeMatches,
-    duplicateClusters,
-    locations,
-    categories,
-    recentAudits,
-  ] = await Promise.all([
-    prisma.item.count({ where: { type: "LOST" } }),
-    prisma.item.count({ where: { type: "FOUND" } }),
-    prisma.item.count({ where: { status: "RECOVERED" } }),
-    prisma.match.count({ where: { overallScore: { gte: 0.8 } } }),
-    prisma.duplicateCluster.count(),
-    prisma.location.findMany({
-      include: { _count: { select: { items: true, sightings: true } } },
-      orderBy: { items: { _count: "desc" } },
-    }),
-    prisma.category.findMany({
-      include: { _count: { select: { items: true } } },
-      orderBy: { items: { _count: "desc" } },
-    }),
-    prisma.auditLog.findMany({
-      take: 6,
-      orderBy: { createdAt: "desc" },
-      include: { actor: { select: { name: true, role: true } } },
-    }),
-  ]);
+  let totalLost = 0;
+  let totalFound = 0;
+  let recoveredCount = 0;
+  let activeMatches = 0;
+  let duplicateClusters = 0;
+  let locations: any[] = [];
+  let categories: any[] = [];
+  let recentAudits: any[] = [];
+
+  try {
+    const results = await Promise.all([
+      prisma.item.count({ where: { type: "LOST" } }),
+      prisma.item.count({ where: { type: "FOUND" } }),
+      prisma.item.count({ where: { status: "RECOVERED" } }),
+      prisma.match.count({ where: { overallScore: { gte: 0.8 } } }),
+      prisma.duplicateCluster.count(),
+      prisma.location.findMany({
+        include: { _count: { select: { items: true, sightings: true } } },
+        orderBy: { items: { _count: "desc" } },
+      }),
+      prisma.category.findMany({
+        include: { _count: { select: { items: true } } },
+        orderBy: { items: { _count: "desc" } },
+      }),
+      prisma.auditLog.findMany({
+        take: 6,
+        orderBy: { createdAt: "desc" },
+        include: { actor: { select: { name: true, role: true } } },
+      }),
+    ]);
+    totalLost = results[0];
+    totalFound = results[1];
+    recoveredCount = results[2];
+    activeMatches = results[3];
+    duplicateClusters = results[4];
+    locations = results[5];
+    categories = results[6];
+    recentAudits = results[7];
+  } catch (err) {
+    console.warn("[UniTrace Admin Dashboard] Intelligence metrics fallback:", err);
+  }
 
   const totalReports = totalLost + totalFound;
   const recoveryRate = totalLost > 0 ? Math.round((recoveredCount / totalLost) * 100) : 0;

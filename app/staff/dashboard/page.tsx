@@ -29,37 +29,46 @@ export default async function StaffDashboardPage() {
   }
 
   // Fetch operational counts
-  const [
-    pendingClaimsCount,
-    readyHandoverCount,
-    suggestedClustersCount,
-    recentItems,
-    highConfidenceMatches,
-  ] = await Promise.all([
-    prisma.claim.count({ where: { status: { in: ["PENDING", "UNDER_REVIEW", "VERIFICATION_REQUIRED"] } } }),
-    prisma.claim.count({ where: { status: "HANDOVER_SCHEDULED" } }),
-    prisma.duplicateCluster.count({ where: { status: "SUGGESTED" } }),
-    prisma.item.findMany({
-      take: 8,
-      orderBy: { createdAt: "desc" },
-      include: {
-        category: true,
-        primaryLocation: true,
-        images: true,
-        reporter: { select: { name: true, role: true } },
-      },
-    }),
-    prisma.match.findMany({
-      where: { overallScore: { gte: 0.85 } },
-      take: 4,
-      orderBy: { overallScore: "desc" },
-      include: {
-        lostItem: { include: { primaryLocation: true } },
-        foundItem: { include: { primaryLocation: true } },
-        evidence: true,
-      },
-    }),
-  ]);
+  let pendingClaimsCount = 0;
+  let readyHandoverCount = 0;
+  let suggestedClustersCount = 0;
+  let recentItems: any[] = [];
+  let highConfidenceMatches: any[] = [];
+
+  try {
+    const results = await Promise.all([
+      prisma.claim.count({ where: { status: { in: ["PENDING", "UNDER_REVIEW", "VERIFICATION_REQUIRED"] } } }),
+      prisma.claim.count({ where: { status: "HANDOVER_SCHEDULED" } }),
+      prisma.duplicateCluster.count({ where: { status: "SUGGESTED" } }),
+      prisma.item.findMany({
+        take: 8,
+        orderBy: { createdAt: "desc" },
+        include: {
+          category: true,
+          primaryLocation: true,
+          images: true,
+          reporter: { select: { name: true, role: true } },
+        },
+      }),
+      prisma.match.findMany({
+        where: { overallScore: { gte: 0.85 } },
+        take: 4,
+        orderBy: { overallScore: "desc" },
+        include: {
+          lostItem: { include: { primaryLocation: true } },
+          foundItem: { include: { primaryLocation: true } },
+          evidence: true,
+        },
+      }),
+    ]);
+    pendingClaimsCount = results[0];
+    readyHandoverCount = results[1];
+    suggestedClustersCount = results[2];
+    recentItems = results[3];
+    highConfidenceMatches = results[4];
+  } catch (err) {
+    console.warn("[UniTrace Staff Dashboard] Operational counts fallback:", err);
+  }
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 space-y-8">
