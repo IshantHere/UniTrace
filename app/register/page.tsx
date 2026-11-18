@@ -36,8 +36,11 @@ export default function RegisterPage() {
       } else {
         setRedirecting(true);
         const target = json.data?.redirectUrl || "/dashboard";
-        // Hard navigation guarantees fresh server session rendering
-        window.location.href = target;
+        // Hard replace guarantees fresh server session rendering
+        window.location.replace(target);
+        setTimeout(() => {
+          window.location.href = target;
+        }, 300);
       }
     } catch {
       setError("An unexpected network error occurred");
@@ -62,6 +65,21 @@ export default function RegisterPage() {
             Join Newton University&apos;s UniTrace intelligence network
           </p>
         </div>
+
+        {redirecting && (
+          <div className="rounded border border-[#25845A]/40 bg-[#25845A]/10 p-3.5 text-xs text-[#25845A] flex flex-col gap-1.5 animate-pulse">
+            <div className="flex items-center gap-2 font-semibold">
+              <Loader2 className="h-4 w-4 animate-spin text-[#25845A]" />
+              Account enrolled. Initializing security session...
+            </div>
+            <p className="text-[11px] text-[#171717]">
+              Redirecting to campus terminal. If not redirected automatically,{" "}
+              <a href="/dashboard" className="underline font-bold text-[#3867E8]">
+                click here to enter dashboard
+              </a>.
+            </p>
+          </div>
+        )}
 
         {error && (
           <div className="rounded border border-[#DC2626]/30 bg-[#DC2626]/5 p-3 text-xs text-[#DC2626]">
