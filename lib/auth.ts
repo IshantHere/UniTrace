@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { createHash, randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
@@ -8,7 +9,7 @@ const COOKIE = "unitrace_session";
 const ttl = 60 * 60 * 24 * 14; // 14 days
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, response?: NextResponse) {
   const token = randomBytes(32).toString("hex");
   await prisma.session.create({
     data: {
@@ -17,23 +18,45 @@ export async function createSession(userId: string) {
       expiresAt: new Date(Date.now() + ttl * 1000),
     },
   });
-  cookies().set(COOKIE, token, {
+
+  const cookieOptions = {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: ttl,
-  });
+  };
+
+  try {
+    cookies().set(COOKIE, token, cookieOptions);
+  } catch (e) {
+    // In serverless contexts where cookies() is read-only
+  }
+
+  if (response) {
+    response.cookies.set(COOKIE, token, cookieOptions);
+  }
+
+  return token;
 }
 
-export async function destroySession() {
-  const token = cookies().get(COOKIE)?.value;
-  if (token) {
-    await prisma.session.deleteMany({
-      where: { tokenHash: hash(token) },
-    });
+export async function destroySession(response?: NextResponse) {
+  try {
+    const token = cookies().get(COOKIE)?.value;
+    if (token) {
+      await prisma.session.deleteMany({
+        where: { tokenHash: hash(token) },
+      });
+    }
+  } catch (e) {}
+
+  try {
+    cookies().delete(COOKIE);
+  } catch (e) {}
+
+  if (response) {
+    response.cookies.delete(COOKIE);
   }
-  cookies().delete(COOKIE);
 }
 
 export async function getCurrentUser() {

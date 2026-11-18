@@ -68,8 +68,7 @@ export function Navbar() {
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
-    router.push("/login");
-    router.refresh();
+    window.location.href = "/";
   };
 
   const handleQuickLogin = async (email: string) => {
@@ -82,15 +81,15 @@ export function Navbar() {
       });
       const json = await res.json();
       if (json.success) {
-        await fetchUser();
-        if (json.data.user.role === "STAFF") {
-          router.push("/staff/dashboard");
-        } else if (json.data.user.role === "ADMIN") {
-          router.push("/admin/dashboard");
-        } else {
-          router.push("/dashboard");
-        }
-        router.refresh();
+        const role = json.data?.user?.role;
+        const target =
+          json.data?.redirectUrl ||
+          (role === "STAFF"
+            ? "/staff/dashboard"
+            : role === "ADMIN" || role === "SUPER_ADMIN"
+            ? "/admin/dashboard"
+            : "/dashboard");
+        window.location.href = target;
       }
     } catch (e) {
       console.error(e);
@@ -307,7 +306,13 @@ export function Navbar() {
               </Link>
 
               <Link
-                href="/dashboard"
+                href={
+                  user.role === "STAFF"
+                    ? "/staff/dashboard"
+                    : user.role === "ADMIN" || user.role === "SUPER_ADMIN"
+                    ? "/admin/dashboard"
+                    : "/dashboard"
+                }
                 className="flex items-center gap-1.5 rounded-md border border-[#DADAD6] bg-white px-2.5 py-1 text-xs font-semibold text-[#171717] hover:bg-[#F7F7F5]"
               >
                 <User className="h-3.5 w-3.5 text-[#777777]" />

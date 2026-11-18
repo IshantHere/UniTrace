@@ -1,16 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
-import { Compass, Lock, Mail, ArrowRight, ShieldCheck, UserCheck, Sparkles } from "lucide-react";
+import { FormEvent, useState, useEffect } from "react";
+import { Compass, Lock, Mail, ArrowRight, ShieldCheck, UserCheck, Sparkles, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+
+  // Check if redirect query parameter is set e.g. /login?redirect=/report/lost
+  const resolveTarget = (fallbackUrl: string) => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const customRedirect = params.get("redirect") || params.get("callbackUrl") || params.get("from");
+      if (customRedirect && customRedirect.startsWith("/")) {
+        return customRedirect;
+      }
+    }
+    return fallbackUrl;
+  };
 
   const handleLogin = async (e?: FormEvent) => {
     if (e) e.preventDefault();
@@ -27,20 +38,23 @@ export default function LoginPage() {
       const json = await res.json();
       if (!res.ok || !json.success) {
         setError(json.error?.message || "Invalid credentials");
+        setLoading(false);
       } else {
-        const role = json.data.user.role;
-        if (role === "STAFF") {
-          router.push("/staff/dashboard");
-        } else if (role === "ADMIN") {
-          router.push("/admin/dashboard");
-        } else {
-          router.push("/dashboard");
-        }
-        router.refresh();
+        setRedirecting(true);
+        const role = json.data?.user?.role;
+        const defaultRoute =
+          role === "STAFF"
+            ? "/staff/dashboard"
+            : role === "ADMIN" || role === "SUPER_ADMIN"
+            ? "/admin/dashboard"
+            : "/dashboard";
+
+        const target = resolveTarget(json.data?.redirectUrl || defaultRoute);
+        // Full hard navigation guarantees fresh server session evaluation without stale RSC cache
+        window.location.href = target;
       }
     } catch {
       setError("An unexpected network error occurred");
-    } finally {
       setLoading(false);
     }
   };
@@ -60,21 +74,23 @@ export default function LoginPage() {
 
       const json = await res.json();
       if (json.success) {
-        const role = json.data.user.role;
-        if (role === "STAFF") {
-          router.push("/staff/dashboard");
-        } else if (role === "ADMIN") {
-          router.push("/admin/dashboard");
-        } else {
-          router.push("/dashboard");
-        }
-        router.refresh();
+        setRedirecting(true);
+        const role = json.data?.user?.role;
+        const defaultRoute =
+          role === "STAFF"
+            ? "/staff/dashboard"
+            : role === "ADMIN" || role === "SUPER_ADMIN"
+            ? "/admin/dashboard"
+            : "/dashboard";
+
+        const target = resolveTarget(json.data?.redirectUrl || defaultRoute);
+        window.location.href = target;
       } else {
         setError(json.error?.message || "Login failed");
+        setLoading(false);
       }
     } catch {
       setError("Network error during demo login");
-    } finally {
       setLoading(false);
     }
   };
@@ -192,8 +208,20 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 text-xs">
-            {loading ? "Authenticating Credentials..." : "Sign in to Account"}
+          <button type="submit" disabled={loading || redirecting} className="btn-primary w-full py-2.5 text-xs flex items-center justify-center gap-2">
+            {redirecting ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Redirecting to Console...</span>
+              </>
+            ) : loading ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Authenticating Credentials...</span>
+              </>
+            ) : (
+              <span>Sign in to Account</span>
+            )}
           </button>
         </form>
 

@@ -53,9 +53,14 @@ export async function POST(req: Request) {
       metadata: { role: user.role, email: user.email },
     });
 
-    await createSession(user.id);
+    const redirectUrl =
+      user.role === "STAFF"
+        ? "/staff/dashboard"
+        : user.role === "ADMIN" || user.role === "SUPER_ADMIN"
+        ? "/admin/dashboard"
+        : "/dashboard";
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         data: {
@@ -65,10 +70,15 @@ export async function POST(req: Request) {
             email: user.email,
             role: user.role,
           },
+          redirectUrl,
         },
       },
       { status: 201 }
     );
+
+    await createSession(user.id, response);
+
+    return response;
   } catch (e: any) {
     return NextResponse.json(
       { success: false, error: { code: "VALIDATION_ERROR", message: e.message || "Invalid request" } },

@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { Compass, Lock, Mail, User, Phone, Shield } from "lucide-react";
+import { Compass, Lock, Mail, User, Phone, Shield, Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -17,6 +15,7 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -33,13 +32,15 @@ export default function RegisterPage() {
       const json = await res.json();
       if (!res.ok || !json.success) {
         setError(json.error?.message || "Registration failed");
+        setLoading(false);
       } else {
-        router.push("/dashboard");
-        router.refresh();
+        setRedirecting(true);
+        const target = json.data?.redirectUrl || "/dashboard";
+        // Hard navigation guarantees fresh server session rendering
+        window.location.href = target;
       }
     } catch {
       setError("An unexpected network error occurred");
-    } finally {
       setLoading(false);
     }
   };
@@ -173,8 +174,20 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 text-xs">
-            {loading ? "Registering Profile..." : "Complete Enrollment"}
+          <button type="submit" disabled={loading || redirecting} className="btn-primary w-full py-2.5 text-xs flex items-center justify-center gap-2">
+            {redirecting ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Enrolled! Opening Dashboard...</span>
+              </>
+            ) : loading ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Registering Profile...</span>
+              </>
+            ) : (
+              <span>Complete Enrollment</span>
+            )}
           </button>
         </form>
 
