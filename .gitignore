@@ -7,3 +7,5 @@ prisma/*.db-journal
 prisma/*.db-wal
 prisma/*.db-shm
 coverage
+.DS_Store
+*.tsbuildinfo

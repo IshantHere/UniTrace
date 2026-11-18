@@ -3,8 +3,8 @@ const nextConfig = {
   experimental: {
     typedRoutes: false,
     outputFileTracingIncludes: {
-      "/*": ["./prisma/**/*"],
-      "/**": ["./prisma/**/*"],
+      "/*": ["./prisma/**/*", "./dev.db"],
+      "/**": ["./prisma/**/*", "./dev.db"],
     },
   },
   poweredByHeader: false,
@@ -35,4 +35,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-

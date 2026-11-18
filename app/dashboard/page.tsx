@@ -257,7 +257,7 @@ export default async function DashboardPage() {
                   <div className="text-[10px] font-semibold uppercase text-[#555555]">
                     Detected Overlap Signatures:
                   </div>
-                  {m.evidence.slice(0, 2).map((ev) => (
+                  {m.evidence.slice(0, 2).map((ev: any) => (
                     <div key={ev.id} className="flex items-center gap-1.5 text-[11px] text-[#171717]">
                       <Check className="h-3.5 w-3.5 text-[#25845A] flex-shrink-0" />
                       <span className="truncate">{ev.description}</span>
