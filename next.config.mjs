@@ -4,6 +4,7 @@ const nextConfig = {
     typedRoutes: false,
     outputFileTracingIncludes: {
       "/*": ["./prisma/**/*"],
+      "/**": ["./prisma/**/*"],
     },
   },
   poweredByHeader: false,
