@@ -16,6 +16,52 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+// Client-side image optimizer to resize and compress high-resolution phone photos
+function compressImage(file: File, maxWidth = 1200, quality = 0.85): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onerror = () => resolve("");
+    reader.onload = (e) => {
+      const rawResult = e.target?.result as string;
+      if (!rawResult) {
+        resolve("");
+        return;
+      }
+      const img = new Image();
+      img.onerror = () => resolve(rawResult);
+      img.onload = () => {
+        try {
+          let { width, height } = img;
+          if (width > maxWidth || height > maxWidth) {
+            if (width > height) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxWidth) / height);
+              height = maxWidth;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(rawResult);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          resolve(dataUrl);
+        } catch {
+          resolve(rawResult);
+        }
+      };
+      img.src = rawResult;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ReportFoundPage() {
   const router = useRouter();
   const [categories, setCategories] = useState<any[]>([]);
@@ -53,28 +99,33 @@ export default function ReportFoundPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const inputEl = e.target;
     setImageUploading(true);
     setError("");
 
     try {
-      const data = new FormData();
-      data.append("file", file);
+      // 1. Immediately create optimized client-side preview
+      const optimizedDataUrl = await compressImage(file);
+      if (optimizedDataUrl) {
+        setImageUrl(optimizedDataUrl);
+      }
 
+      // 2. Transmit to server upload endpoint
       const res = await fetch("/api/items/upload", {
         method: "POST",
-        body: data,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: optimizedDataUrl || undefined }),
       });
 
       const json = await res.json();
       if (json.success && json.data?.url) {
         setImageUrl(json.data.url);
-      } else {
-        setError(json.error?.message || "Image upload failed");
       }
-    } catch {
-      setError("Network error uploading photo");
+    } catch (uploadErr) {
+      console.warn("Upload fallback using local image data:", uploadErr);
     } finally {
       setImageUploading(false);
+      if (inputEl) inputEl.value = "";
     }
   };
 
@@ -266,7 +317,7 @@ export default function ReportFoundPage() {
               <input
                 id="photoUpload"
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*,image/jpeg,image/png,image/webp,image/jpg"
                 onChange={handleImageUpload}
                 disabled={imageUploading}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
