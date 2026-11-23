@@ -123,7 +123,33 @@ function getPrismaClient(): PrismaClient {
     return client;
   }
 
-  const client = new PrismaClient();
+  // In local development, ensure Prisma connects directly to the canonical SQLite database file
+  let localDbUrl = process.env.DATABASE_URL;
+  if (!localDbUrl || localDbUrl.startsWith("file:")) {
+    const candidates = [
+      path.resolve(process.cwd(), "prisma", "dev.db"),
+      path.resolve(process.cwd(), "dev.db"),
+      path.resolve(process.cwd(), "..", "prisma", "dev.db"),
+      path.resolve(process.cwd(), "..", "dev.db"),
+    ];
+    let resolvedDbFile = candidates[0];
+    for (const c of candidates) {
+      if (fs.existsSync(c) && fs.statSync(c).size > 0) {
+        resolvedDbFile = c;
+        break;
+      }
+    }
+    localDbUrl = `file:${resolvedDbFile}`;
+    process.env.DATABASE_URL = localDbUrl;
+  }
+
+  const client = new PrismaClient({
+    datasources: {
+      db: {
+        url: localDbUrl,
+      },
+    },
+  });
   if (process.env.NODE_ENV !== "production") {
     globalForPrisma.prisma = client;
   }

@@ -80,7 +80,7 @@ export async function createSession(userId: string, response?: NextResponse, use
     role: user?.role || "STUDENT",
     name: user?.name || "Ishant Singh",
     studentOrStaffId: user?.studentOrStaffId || null,
-    institutionId: user?.institutionId || user?.institution?.id || "inst_newton",
+    institutionId: user?.institutionId || user?.institution?.id || "inst_apex_university",
     exp,
   };
 
@@ -167,7 +167,7 @@ export async function getCurrentUser() {
 
       // Reconstruct authenticated user from verified cryptographic signature
       const fallbackInstitution = {
-        id: verifiedPayload.institutionId || "inst_newton",
+        id: verifiedPayload.institutionId || "inst_apex_university",
         name: "Newton University",
         slug: "newton",
         domain: "newton.edu",

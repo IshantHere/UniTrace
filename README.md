@@ -19,7 +19,18 @@ UniTrace transforms traditional campus lost-and-found into an intelligent operat
 
 ---
 
+## 👥 Demo Accounts (Newton University)
 
+All test personas use password: **`Newton123!`**
+
+| Role | Name | Email | Access |
+| :--- | :--- | :--- | :--- |
+| 🎓 **Student / Owner** | Ishant Singh | `student@newton.edu` | Report lost items, view matches, track journey, file claims |
+| 🔍 **Finder** | Garvit Chahal | `finder@newton.edu` | Report found items, earn credits, view finder leaderboard |
+| 🛡️ **Campus Staff** | Vijay Kumar | `staff@newton.edu` | Triage incoming reports, review AI matches, execute handovers |
+| ⚙️ **Administrator** | Anil Sharma | `admin@newton.edu` | Executive analytics, recovery metrics, audit logs |
+
+*(A 1-click test credential selector is also available on the [Login Page](https://uni-trace-delta.vercel.app/login)).*
 
 ---
 
@@ -33,7 +44,56 @@ UniTrace transforms traditional campus lost-and-found into an intelligent operat
 - **Icons:** [Lucide React](https://lucide.dev/)
 - **Testing:** [Vitest](https://vitest.dev/) (61 passing unit & integration tests)
 
+---
 
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18.x or 20.x
+- npm / pnpm / yarn
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/IshantHere/UniTrace.git
+   cd UniTrace
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   ```
+
+4. **Initialize database & seed demo data:**
+   ```bash
+   npm run db:push
+   npm run db:seed
+   ```
+
+5. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## 🧪 Testing
+
+Run the automated test suite covering authentication, AI matching, journey reconstruction, rewards, and claim lifecycles:
+
+```bash
+npm test
+```
+
+All 61 unit and integration tests validate the platform against real-world campus scenarios.
 
 ---
 

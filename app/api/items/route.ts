@@ -5,6 +5,10 @@ import { createItemSchema } from "@/lib/validators";
 import { logAudit } from "@/lib/audit";
 import { runAutomaticMatching } from "@/lib/matching/engine";
 import { awardPointsAndCredits } from "@/lib/rewards/engine";
+import { sendItemReportNotification } from "@/lib/notifications/item-alert";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,19 +19,33 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
     const query = searchParams.get("query");
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "12")));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50")));
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    if (type) where.type = type;
+    if (type && type !== "ALL") where.type = type;
     if (categoryId) where.categoryId = categoryId;
     if (locationId) where.primaryLocationId = locationId;
     if (status) where.status = status;
-    if (query) {
-      where.OR = [
-        { title: { contains: query } },
-        { description: { contains: query } },
+
+    if (query && query.trim()) {
+      const trimmed = query.trim();
+      const words = trimmed.split(/\s+/).filter((w) => w.length >= 2);
+
+      const conditions: any[] = [
+        { title: { contains: trimmed } },
+        { description: { contains: trimmed } },
       ];
+
+      for (const word of words) {
+        conditions.push({ title: { contains: word } });
+        conditions.push({ description: { contains: word } });
+        conditions.push({ category: { name: { contains: word } } });
+        conditions.push({ primaryLocation: { name: { contains: word } } });
+        conditions.push({ primaryLocation: { building: { contains: word } } });
+      }
+
+      where.OR = conditions;
     }
 
     const [items, total] = await Promise.all([
@@ -59,18 +77,25 @@ export async function GET(req: NextRequest) {
       prisma.item.count({ where }),
     ]);
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        items,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          items,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
         },
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        },
+      }
+    );
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: { code: "SERVER_ERROR", message: error.message || "Failed to fetch items" } },
@@ -125,6 +150,7 @@ export async function POST(req: NextRequest) {
         category: true,
         primaryLocation: true,
         images: true,
+        reporter: { select: { id: true, name: true, role: true } },
       },
     });
 
@@ -165,7 +191,25 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ⚡ Trigger autonomous multi-signal matching in background (non-blocking)
+    // ✈️ Dispatch instant Multi-Channel Alerts (Telegram + WhatsApp + In-App Notifications)
+    sendItemReportNotification({
+      itemId: item.id,
+      type: parsed.type,
+      title: item.title,
+      description: item.description,
+      categoryName: item.category?.name,
+      locationName: item.primaryLocation?.name || "Campus Grounds",
+      buildingName: item.primaryLocation?.building,
+      reporterId: user.id,
+      reporterName: user.name,
+      reporterRole: user.role,
+      imageUrl: item.images?.[0]?.url,
+      isHighValue: item.isHighValue,
+    }).catch((notifErr) => {
+      console.error("[ItemAlert] Failed to dispatch report notification:", notifErr);
+    });
+
+    // ⚡ Trigger autonomous multi-signal matching in background
     runAutomaticMatching(item.id).catch((err) => {
       console.error("[AutoMatching] Background matching failed:", err);
     });
@@ -175,7 +219,12 @@ export async function POST(req: NextRequest) {
         success: true,
         data: { item },
       },
-      { status: 201 }
+      {
+        status: 201,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
     );
   } catch (error: any) {
     return NextResponse.json(

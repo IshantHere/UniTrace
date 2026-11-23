@@ -28,6 +28,27 @@ function HandoverDeskContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [scheduledHandovers, setScheduledHandovers] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/claims", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.data?.claims)) {
+          const scheduled = d.data.claims.filter(
+            (c: any) => c.status === "HANDOVER_SCHEDULED" && c.handoverRecord
+          );
+          setScheduledHandovers(scheduled);
+          if (scheduled.length > 0 && !searchParams.get("claimId")) {
+            const first = scheduled[0];
+            setClaimId(first.id);
+            setHandoverCode(first.handoverRecord?.handoverCode || "RC-8841");
+            setSignature(`${first.claimant?.name || "Student"} (STU-VERIFIED)`);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [searchParams]);
 
   const handleHandoverSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -121,6 +142,45 @@ function HandoverDeskContent() {
         <div className="rounded border border-[#DC2626]/30 bg-[#DC2626]/5 p-3.5 text-xs text-[#DC2626] flex items-center gap-2">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {scheduledHandovers.length > 0 && (
+        <div className="card p-4 bg-[#F7F7F5] border-[#DADAD6] rounded space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-[#25845A] font-bold">
+              ⚡ READY FOR PICKUP ({scheduledHandovers.length} PENDING)
+            </span>
+            <span className="text-[10px] text-[#777777]">Click to select for verification</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {scheduledHandovers.map((sh) => (
+              <button
+                key={sh.id}
+                type="button"
+                onClick={() => {
+                  setClaimId(sh.id);
+                  setHandoverCode(sh.handoverRecord?.handoverCode || "");
+                  setSignature(`${sh.claimant?.name || "Student"} (STU-VERIFIED)`);
+                }}
+                className={`text-left p-2.5 rounded border transition text-xs flex items-center justify-between ${
+                  claimId === sh.id
+                    ? "border-[#25845A] bg-white ring-1 ring-[#25845A]"
+                    : "border-[#DADAD6] bg-white hover:border-[#171717]"
+                }`}
+              >
+                <div>
+                  <div className="font-semibold text-[#171717] truncate">{sh.item?.title || "Item"}</div>
+                  <div className="text-[10px] text-[#777777]">
+                    Claimant: {sh.claimant?.name || "Student"} • PIN: {sh.handoverRecord?.handoverCode}
+                  </div>
+                </div>
+                <span className="font-mono text-[10px] bg-[#25845A]/10 text-[#25845A] px-2 py-0.5 rounded font-bold">
+                  {sh.handoverRecord?.handoverCode}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

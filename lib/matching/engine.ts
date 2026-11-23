@@ -15,6 +15,7 @@ import {
 } from "./scorer";
 import { compileMatchEvidence } from "./evidence";
 import { emitMatchFound } from "../realtime/bus";
+import { sendTelegramAlert } from "../notifications/telegram-service";
 
 /**
  * Execute automated matching for an item against all active opposing items in the database.
@@ -202,6 +203,29 @@ export async function runAutomaticMatching(itemId: string) {
           locationName: foundItem.primaryLocation.name,
           recipientUserId: lostItem.reporterId,
           timestamp: new Date().toISOString(),
+        });
+
+        // ✈️ Dispatch Instant AI Match Alert via Telegram Bot
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const primaryImg = foundItem.images?.[0]?.url || lostItem.images?.[0]?.url;
+        const matchMsg = [
+          `🎯 *[Newton University] UniTrace AI MATCH CORRELATED (${Math.round(composite.overallScore * 100)}%)*`,
+          `━━━━━━━━━━━━━━━━━━━━`,
+          `🔍 *Lost Item:* ${lostItem.title}`,
+          `📦 *Found Item:* ${foundItem.title}`,
+          `📍 *Facility:* ${foundItem.primaryLocation.name}`,
+          `📊 *Confidence Tier:* ${composite.confidenceTier}`,
+          `━━━━━━━━━━━━━━━━━━━━`,
+          `👉 *Action:* Review match comparison at:`,
+          `${appUrl}/match/${match.id}`,
+        ].join("\n");
+
+        sendTelegramAlert(
+          process.env.TELEGRAM_CHAT_ID,
+          matchMsg,
+          primaryImg && primaryImg.startsWith("http") ? primaryImg : undefined
+        ).catch((tgErr) => {
+          console.warn("[AutoMatching] Telegram alert error:", tgErr);
         });
       }
     }

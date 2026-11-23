@@ -18,6 +18,9 @@ import {
   Layers,
 } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function StaffDashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -41,7 +44,7 @@ export default async function StaffDashboardPage() {
       prisma.claim.count({ where: { status: "HANDOVER_SCHEDULED" } }),
       prisma.duplicateCluster.count({ where: { status: "SUGGESTED" } }),
       prisma.item.findMany({
-        take: 8,
+        take: 20,
         orderBy: { createdAt: "desc" },
         include: {
           category: true,

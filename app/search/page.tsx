@@ -52,8 +52,9 @@ function SearchContent() {
     if (categoryId) params.set("categoryId", categoryId);
     if (locationId) params.set("locationId", locationId);
     if (status) params.set("status", status);
+    params.set("limit", "50");
 
-    fetch(`/api/items?${params.toString()}`)
+    fetch(`/api/items?${params.toString()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         if (d.success && d.data?.items) {
@@ -77,8 +78,9 @@ function SearchContent() {
     const params = new URLSearchParams();
     params.set("query", text);
     if (type !== "ALL") params.set("type", type);
+    params.set("limit", "50");
     setLoading(true);
-    fetch(`/api/items?${params.toString()}`)
+    fetch(`/api/items?${params.toString()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         if (d.success && d.data?.items) {

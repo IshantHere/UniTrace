@@ -4,6 +4,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { createClaimSchema } from "@/lib/validators";
 import { logAudit } from "@/lib/audit";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const user = await getCurrentUser();
@@ -11,9 +14,17 @@ export async function GET() {
       return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } }, { status: 401 });
     }
 
+    const isStaffOrAdmin = ["STAFF", "ADMIN", "SUPER_ADMIN"].includes(user.role);
+    const where: any = isStaffOrAdmin
+      ? {}
+      : { claimantId: user.id };
+
     const claims = await prisma.claim.findMany({
-      where: { claimantId: user.id },
+      where,
       include: {
+        claimant: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
         item: {
           include: {
             category: true,
@@ -32,7 +43,10 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ success: true, data: { claims } });
+    return NextResponse.json(
+      { success: true, data: { claims } },
+      { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
+    );
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: { code: "SERVER_ERROR", message: error.message || "Failed to fetch claims" } },

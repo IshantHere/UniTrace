@@ -44,22 +44,10 @@ export default function StaffClaimsQueuePage() {
 
   const loadClaims = async () => {
     try {
-      const res = await fetch("/api/items");
+      const res = await fetch("/api/claims", { cache: "no-store" });
       const json = await res.json();
-      if (json.success && json.data?.items) {
-        // Fetch full claims with verifications for items with claims
-        const foundItems = json.data.items.filter((i: any) => i.type === "FOUND");
-        const allClaims: any[] = [];
-        for (const item of foundItems) {
-          const itemRes = await fetch(`/api/items/${item.id}`);
-          const itemJson = await itemRes.json();
-          if (itemJson.success && itemJson.data?.item?.claimsReceived) {
-            itemJson.data.item.claimsReceived.forEach((c: any) => {
-              allClaims.push({ ...c, item: itemJson.data.item });
-            });
-          }
-        }
-        setClaims(allClaims);
+      if (json.success && Array.isArray(json.data?.claims)) {
+        setClaims(json.data.claims);
       }
     } catch (e) {
       console.error(e);
