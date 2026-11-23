@@ -305,6 +305,39 @@ export default function StaffClaimsQueuePage() {
                   </div>
                 </div>
 
+                {/* Anti-Collusion & Fair Play Security Verification Pill */}
+                {claim.collusionRisk && (
+                  <div
+                    className={`p-3 rounded border text-xs font-mono flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 ${
+                      claim.collusionRisk.level === "HIGH"
+                        ? "bg-[#DC2626]/10 border-[#DC2626]/40 text-[#DC2626]"
+                        : claim.collusionRisk.level === "MEDIUM"
+                        ? "bg-[#C27803]/10 border-[#C27803]/40 text-[#C27803]"
+                        : "bg-[#25845A]/10 border-[#25845A]/30 text-[#25845A]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 shrink-0" />
+                      <span>
+                        <strong>ANTI-COLLUSION SHIELD:</strong>{" "}
+                        {claim.collusionRisk.level === "HIGH"
+                          ? "⚠️ HIGH COLLUSION RISK: Buddy Farming Suspected"
+                          : claim.collusionRisk.level === "MEDIUM"
+                          ? "⚠️ UNUSUAL VELOCITY: Review Required"
+                          : "✓ VERIFIED LOW RISK (Genuine Handover)"}
+                      </span>
+                      <span className="opacity-80">
+                        (Risk Score: {claim.collusionRisk.score}/100)
+                      </span>
+                    </div>
+                    {claim.collusionRisk.reasons?.length > 0 && (
+                      <div className="text-[11px] opacity-90 truncate max-w-md">
+                        {claim.collusionRisk.reasons.join(" • ")}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Audit Inspection Grid: Secured Specimen vs Claimant Proofs */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                   {/* Left Column: Physical Property Details & Internal Notes */}

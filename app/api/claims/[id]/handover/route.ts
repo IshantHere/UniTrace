@@ -5,6 +5,7 @@ import { ROLES } from "@/lib/constants";
 import { handoverSchema } from "@/lib/validators";
 import { logAudit } from "@/lib/audit";
 import { awardPointsAndCredits } from "@/lib/rewards/engine";
+import { analyzeCollusionRisk } from "@/lib/anti-fraud/collusion-detector";
 
 export async function POST(
   req: NextRequest,
@@ -91,6 +92,32 @@ export async function POST(
     // 🏆 Reward the Finder with Points & Spendable Credits!
     const finderId = claim.item.reporterId;
     if (finderId && finderId !== claim.claimantId) {
+      // Run AI Collusion Risk Assessment
+      const collusionRisk = await analyzeCollusionRisk({
+        claimantId: claim.claimantId,
+        finderId,
+        itemId: claim.itemId,
+        itemCreatedAt: claim.item.createdAt,
+        claimCreatedAt: claim.createdAt,
+      });
+
+      if (collusionRisk.isCollusionSuspected) {
+        console.warn(`[AntiFraud] Collusion warning triggered for claim ${claim.id}:`, collusionRisk.flags);
+        await logAudit({
+          institutionId: user.institutionId,
+          actorId: user.id,
+          action: "COLLUSION_WARNING_TRIGGERED",
+          entityType: "Claim",
+          entityId: claim.id,
+          metadata: {
+            flags: collusionRisk.flags,
+            score: collusionRisk.score,
+            claimantId: claim.claimantId,
+            finderId,
+          },
+        });
+      }
+
       let rewardPts = 100;
       let rewardCredits = 100;
       const reasons: string[] = ["Handover verified at Security Desk (+100)"];

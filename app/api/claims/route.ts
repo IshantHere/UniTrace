@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { createClaimSchema } from "@/lib/validators";
 import { logAudit } from "@/lib/audit";
+import { analyzeCollusionRisk } from "@/lib/anti-fraud/collusion-detector";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -30,6 +31,7 @@ export async function GET() {
             category: true,
             primaryLocation: true,
             images: true,
+            reporter: { select: { id: true, name: true, email: true } },
           },
         },
         verifications: true,
@@ -43,8 +45,26 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
+    const enrichedClaims = await Promise.all(
+      claims.map(async (c) => {
+        if (!isStaffOrAdmin) return c;
+        try {
+          const collusionRisk = await analyzeCollusionRisk({
+            claimantId: c.claimantId,
+            finderId: c.item?.reporterId,
+            itemId: c.itemId,
+            itemCreatedAt: c.item?.createdAt,
+            claimCreatedAt: c.createdAt,
+          });
+          return { ...c, collusionRisk };
+        } catch {
+          return c;
+        }
+      })
+    );
+
     return NextResponse.json(
-      { success: true, data: { claims } },
+      { success: true, data: { claims: enrichedClaims } },
       { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
     );
   } catch (error: any) {
