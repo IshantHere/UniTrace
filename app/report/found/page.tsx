@@ -15,6 +15,7 @@ import {
   Lock,
   ArrowRight,
 } from "lucide-react";
+import { saveClientItem } from "@/lib/client-storage";
 
 // Client-side image optimizer to resize and compress high-resolution phone photos
 function compressImage(file: File, maxWidth = 1200, quality = 0.85): Promise<string> {
@@ -168,6 +169,7 @@ export default function ReportFoundPage() {
 
       const json = await res.json();
       if (json.success && json.data?.item) {
+        saveClientItem(json.data.item);
         setSubmittedItem(json.data.item);
       } else {
         if (res.status === 401) {

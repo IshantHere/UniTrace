@@ -10,6 +10,13 @@ import { sendItemReportNotification } from "@/lib/notifications/item-alert";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+declare global {
+  var __unitrace_dynamic_items: any[] | undefined;
+}
+if (!globalThis.__unitrace_dynamic_items) {
+  globalThis.__unitrace_dynamic_items = [];
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -77,16 +84,34 @@ export async function GET(req: NextRequest) {
       prisma.item.count({ where }),
     ]);
 
+    // Merge in-memory items from current process
+    const inMemoryItems = (globalThis.__unitrace_dynamic_items || []).filter((item) => {
+      if (type && type !== "ALL" && item.type !== type) return false;
+      if (categoryId && item.categoryId !== categoryId) return false;
+      if (locationId && item.primaryLocationId !== locationId) return false;
+      if (status && item.status !== status) return false;
+      return true;
+    });
+
+    const seenIds = new Set(items.map((i) => i.id));
+    const mergedItems = [...items];
+    for (const mem of inMemoryItems) {
+      if (!seenIds.has(mem.id)) {
+        seenIds.add(mem.id);
+        mergedItems.unshift(mem);
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
         data: {
-          items,
+          items: mergedItems,
           pagination: {
             page,
             limit,
-            total,
-            totalPages: Math.ceil(total / limit),
+            total: total + inMemoryItems.filter((m) => !seenIds.has(m.id)).length,
+            totalPages: Math.ceil((total + inMemoryItems.length) / limit),
           },
         },
       },
@@ -153,6 +178,16 @@ export async function POST(req: NextRequest) {
         reporter: { select: { id: true, name: true, role: true } },
       },
     });
+
+    // Push to in-memory process registry
+    if (globalThis.__unitrace_dynamic_items) {
+      const idx = globalThis.__unitrace_dynamic_items.findIndex((i) => i.id === item.id);
+      if (idx >= 0) {
+        globalThis.__unitrace_dynamic_items[idx] = item;
+      } else {
+        globalThis.__unitrace_dynamic_items.unshift(item);
+      }
+    }
 
     // Create initial Sighting for the reported location
     await prisma.sighting.create({

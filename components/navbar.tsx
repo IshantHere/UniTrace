@@ -125,6 +125,7 @@ export function Navbar() {
           <nav className="hidden items-center gap-0.5 md:flex font-mono text-[11px]">
             <Link
               href="/search"
+              prefetch={false}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition ${
                 pathname === "/search"
                   ? "bg-[#171717] text-white font-semibold"
@@ -137,6 +138,7 @@ export function Navbar() {
 
             <Link
               href="/report/lost"
+              prefetch={false}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition ${
                 pathname.startsWith("/report/lost")
                   ? "bg-[#171717] text-white font-semibold"
@@ -149,6 +151,7 @@ export function Navbar() {
 
             <Link
               href="/report/found"
+              prefetch={false}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition ${
                 pathname.startsWith("/report/found")
                   ? "bg-[#171717] text-white font-semibold"
@@ -161,6 +164,7 @@ export function Navbar() {
 
             <Link
               href="/leaderboard"
+              prefetch={false}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition ${
                 pathname.startsWith("/leaderboard")
                   ? "bg-[#171717] text-white font-semibold"
@@ -174,6 +178,7 @@ export function Navbar() {
             {user?.role && ["STAFF", "ADMIN", "SUPER_ADMIN"].includes(user.role) && (
               <Link
                 href="/staff/dashboard"
+                prefetch={false}
                 className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition ${
                   pathname.startsWith("/staff")
                     ? "bg-[#3867E8] text-white font-semibold"
@@ -188,6 +193,7 @@ export function Navbar() {
             {user?.role && ["ADMIN", "SUPER_ADMIN"].includes(user.role) && (
               <Link
                 href="/admin/dashboard"
+                prefetch={false}
                 className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition ${
                   pathname.startsWith("/admin")
                     ? "bg-[#171717] text-white font-semibold"
@@ -306,6 +312,7 @@ export function Navbar() {
               </Link>
 
               <Link
+                prefetch={false}
                 href={
                   user.role === "STAFF"
                     ? "/staff/dashboard"

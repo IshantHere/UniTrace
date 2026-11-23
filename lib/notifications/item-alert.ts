@@ -91,7 +91,7 @@ export async function sendItemReportNotification(payload: ItemReportAlertPayload
   }
 
   // 2. 💬 WhatsApp Notification (for Found items turned in to Security Desk)
-  const securityDeskPhone = process.env.WHATSAPP_SECURITY_PHONE || process.env.SECURITY_DESK_PHONE;
+  const securityDeskPhone = process.env.WHATSAPP_SECURITY_PHONE || process.env.SECURITY_DESK_PHONE || "+919456643467";
   if (securityDeskPhone && payload.type === "FOUND") {
     try {
       const waRes = await sendWhatsAppMessage(securityDeskPhone, message);

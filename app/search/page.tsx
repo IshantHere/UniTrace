@@ -16,6 +16,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { getItemImageUrl } from "@/lib/images";
+import { getClientItems, mergeItems } from "@/lib/client-storage";
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -54,18 +55,45 @@ function SearchContent() {
     if (status) params.set("status", status);
     params.set("limit", "50");
 
+    // Retrieve local client items and filter according to active criteria
+    const localItems = getClientItems().filter((item) => {
+      if (type !== "ALL" && item.type !== type) return false;
+      if (categoryId && item.categoryId !== categoryId) return false;
+      if (locationId && item.primaryLocationId !== locationId) return false;
+      if (status && item.status !== status) return false;
+      if (query.trim()) {
+        const q = query.trim().toLowerCase();
+        const titleMatch = item.title?.toLowerCase().includes(q);
+        const descMatch = item.description?.toLowerCase().includes(q);
+        const catMatch = item.category?.name?.toLowerCase().includes(q);
+        const locMatch = item.primaryLocation?.name?.toLowerCase().includes(q);
+        const bldMatch = item.primaryLocation?.building?.toLowerCase().includes(q);
+        if (!titleMatch && !descMatch && !catMatch && !locMatch && !bldMatch) return false;
+      }
+      return true;
+    });
+
     fetch(`/api/items?${params.toString()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        if (d.success && d.data?.items) {
-          setItems(d.data.items);
-        }
+        const serverItems = (d.success && d.data?.items) ? d.data.items : [];
+        setItems(mergeItems(serverItems, localItems));
+      })
+      .catch(() => {
+        setItems(localItems);
       })
       .finally(() => setLoading(false));
   }, [query, type, categoryId, locationId, status]);
 
   useEffect(() => {
     executeSearch();
+    const handleItemSaved = () => executeSearch();
+    window.addEventListener("unitrace_item_saved", handleItemSaved);
+    window.addEventListener("focus", handleItemSaved);
+    return () => {
+      window.removeEventListener("unitrace_item_saved", handleItemSaved);
+      window.removeEventListener("focus", handleItemSaved);
+    };
   }, [executeSearch]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -297,7 +325,7 @@ function SearchContent() {
                       <h3 className="font-semibold text-sm text-[#171717] truncate">{item.title}</h3>
                       <p className="text-xs text-[#777777] flex items-center gap-1 truncate">
                         <MapPin className="h-3 w-3 flex-shrink-0" />
-                        <span>{item.primaryLocation.building} — {item.primaryLocation.name}</span>
+                        <span>{(item.primaryLocation?.building || "Main Campus")} — {(item.primaryLocation?.name || "Campus Facility")}</span>
                       </p>
                       <p className="font-mono text-[10px] text-[#777777]">
                         {new Date(item.incidentDate).toLocaleDateString()}

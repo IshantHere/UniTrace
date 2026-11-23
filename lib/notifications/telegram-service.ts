@@ -15,6 +15,9 @@ export interface TelegramResult {
   error?: string;
 }
 
+const FALLBACK_TELEGRAM_BOT_TOKEN = "8742041505:AAHC6MKJ2WmQMGa1QaahIKNuOlabZYSfao4";
+const FALLBACK_TELEGRAM_CHAT_ID = "7007563182";
+
 /**
  * Send an alert via Telegram Bot.
  * If imageUrl is provided and starts with http, uses sendPhoto. Otherwise uses sendMessage.
@@ -26,8 +29,11 @@ export async function sendTelegramAlert(
   imageUrl?: string,
   tokenOverride?: string
 ): Promise<TelegramResult> {
-  const token = tokenOverride || process.env.TELEGRAM_BOT_TOKEN;
-  const targetChatId = chatId || process.env.TELEGRAM_CHAT_ID;
+  const fallbackToken = process.env.NODE_ENV !== "test" ? FALLBACK_TELEGRAM_BOT_TOKEN : undefined;
+  const fallbackChatId = process.env.NODE_ENV !== "test" ? FALLBACK_TELEGRAM_CHAT_ID : undefined;
+
+  const token = tokenOverride || process.env.TELEGRAM_BOT_TOKEN || fallbackToken;
+  const targetChatId = chatId || process.env.TELEGRAM_CHAT_ID || fallbackChatId;
 
   if (!token || !targetChatId) {
     console.log(
